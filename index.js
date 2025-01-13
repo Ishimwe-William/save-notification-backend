@@ -77,8 +77,8 @@ function startMonitoring() {
     const thresholdsRef = ref(rtdb, THRESHOLDS_PATH);
 
     // Clear existing listeners
-    off(warehouseDataRef);
-    off(thresholdsRef);
+    // off(warehouseDataRef);
+    // off(thresholdsRef);
 
     // Track current thresholds and the last threshold update timestamp
     let currentThresholds = null;
