@@ -66,11 +66,11 @@ async function saveNotificationToFirebase(notification) {
 
 function checkThresholdBreach(value, highThreshold, lowThreshold) {
     if (value > highThreshold) {
-        return 'high';
+        return 'high'; // Value is above the high threshold
     } else if (value < lowThreshold) {
-        return 'low';
+        return 'low'; // Value is below the low threshold
     }
-    return null; // value is within range
+    return null; // Value is within the range, do nothing
 }
 
 function startMonitoring() {
