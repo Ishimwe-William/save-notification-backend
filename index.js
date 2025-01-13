@@ -1,29 +1,36 @@
 import { listenToThresholds } from './src/server.js';
-const express = require('express');
+import express from 'express';
+
 const app = express();
 const PORT = 4000;
 
-// Simple test function to check if the server is working
-const testServer = async () => {
-    console.log('Starting the server...');
-
-    // Test listening to thresholds
+// Initialize the server and listen to Firebase
+const initializeServer = async () => {
+    console.log('Initializing the server...');
     try {
+        // Start listening to thresholds in Firebase
         listenToThresholds();
+        console.log('Listening to Firebase thresholds...');
     } catch (error) {
-        console.error('Error in server:', error);
+        console.error('Error initializing Firebase listener:', error.message);
     }
 };
 
-testServer();
-
+// Express route to test server functionality
 app.get('/home', (req, res) => {
-    res.status(200).json('Welcome, your app is working well');
+    res.status(200).json({ message: 'Welcome, your app is working well!' });
 });
 
-app.listen(PORT, () => {
+// Error-handling middleware
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err.message);
+    res.status(500).json({ error: 'An unexpected error occurred.' });
+});
+
+// Start the Express server
+app.listen(PORT, async () => {
     console.log(`Server running at http://localhost:${PORT}`);
+    await initializeServer(); // Call the Firebase initialization
 });
 
-module.exports = app;
-
+export default app;
