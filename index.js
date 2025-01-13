@@ -1,6 +1,6 @@
 import express from "express";
-import {initializeApp} from "firebase/app";
-import {getDatabase, ref, onValue, get, set, off, push} from "firebase/database";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, onValue, get, set, off, push } from "firebase/database";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -66,11 +66,11 @@ async function saveNotificationToFirebase(notification) {
 
 function checkThresholdBreach(value, highThreshold, lowThreshold) {
     if (value > highThreshold) {
-        return 'high'; // Value is above the high threshold
+        return 'high';
     } else if (value < lowThreshold) {
-        return 'low'; // Value is below the low threshold
+        return 'low';
     }
-    return null; // Value is within the range, do nothing
+    return null; // value is within range
 }
 
 function startMonitoring() {
@@ -130,15 +130,6 @@ function startMonitoring() {
                 currentThresholds.humLowThreshold
             );
 
-            // Check temperature thresholds
-            const temperatureBreach = checkThresholdBreach(
-                mostRecentData.temperature,
-                currentThresholds.tempHighThreshold,
-                currentThresholds.tempLowThreshold
-            );
-
-            if(!humidityBreach || !temperatureBreach) return;
-
             if (humidityBreach) {
                 const message = humidityBreach === 'high'
                     ? `Humidity above maximum threshold of ${currentThresholds.humHighThreshold}% at ${mostRecentData.createdAt_time}`
@@ -153,6 +144,13 @@ function startMonitoring() {
                     breachType: humidityBreach
                 });
             }
+
+            // Check temperature thresholds
+            const temperatureBreach = checkThresholdBreach(
+                mostRecentData.temperature,
+                currentThresholds.tempHighThreshold,
+                currentThresholds.tempLowThreshold
+            );
 
             if (temperatureBreach) {
                 const message = temperatureBreach === 'high'
