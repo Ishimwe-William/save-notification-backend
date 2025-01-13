@@ -24,41 +24,38 @@ const THRESHOLDS_PATH = '/warehouse/thresholds';
 const GENERAL_NOTIFICATIONS_PATH = '/warehouse/notifications/general';
 const WAREHOUSE_DATA_PATH = '/warehouse/data';
 
+const sentNotifications = new Set(); // Set to store unique notification identifiers
+
 async function saveNotificationToFirebase(notification) {
     try {
         const notificationRef = ref(rtdb, GENERAL_NOTIFICATIONS_PATH);
 
-        // Check for recent similar notifications
-        const snapshot = await get(notificationRef);
-        let shouldSaveNotification = true;
+        // Generate a unique identifier based on notification data
+        const notificationId = `${notification.type}_${notification.message}_${notification.value}_${notification.dataTimestamp}`;
 
-        if (snapshot.exists()) {
-            const notifications = Object.values(snapshot.val());
-            const recentNotification = notifications[notifications.length - 1];
-
-            const isIdenticalNotification =
-                recentNotification.type === notification.type &&
-                recentNotification.message === notification.message &&
-                recentNotification.value === notification.value &&
-                recentNotification.dataTimestamp === notification.dataTimestamp;
-
-            if (isIdenticalNotification) {
-                console.log('Identical notification found, skipping:', notification);
-                shouldSaveNotification = false;
-            }
+        // Check if this notification has already been sent
+        if (sentNotifications.has(notificationId)) {
+            console.log('Identical notification found, skipping:', notification);
+            return; // Skip saving if already sent
         }
 
-        if (shouldSaveNotification) {
-            const newNotificationKey = push(notificationRef).key;
-            const finalNotificationRef = ref(rtdb, `${GENERAL_NOTIFICATIONS_PATH}/${newNotificationKey}`);
+        // Save the notification
+        const newNotificationKey = push(notificationRef).key;
+        const finalNotificationRef = ref(rtdb, `${GENERAL_NOTIFICATIONS_PATH}/${newNotificationKey}`);
 
-            await set(finalNotificationRef, {
-                ...notification,
-                readBy: {},
-                timestamp: new Date().toISOString()
-            });
-            console.log('New notification saved:', notification);
-        }
+        await set(finalNotificationRef, {
+            ...notification,
+            readBy: {},
+            timestamp: new Date().toISOString()
+        });
+
+        // Add the notification identifier to the set of sent notifications
+        sentNotifications.add(notificationId);
+        console.log('New notification saved:', notification);
+
+        // Optional: Clean up the set periodically (e.g., after 24 hours) to free memory
+        // sentNotifications.delete(notificationId); // Uncomment to remove after some time (e.g., after 1 day)
+
     } catch (error) {
         console.error("Error saving notification:", error);
     }
