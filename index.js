@@ -130,6 +130,15 @@ function startMonitoring() {
                 currentThresholds.humLowThreshold
             );
 
+            // Check temperature thresholds
+            const temperatureBreach = checkThresholdBreach(
+                mostRecentData.temperature,
+                currentThresholds.tempHighThreshold,
+                currentThresholds.tempLowThreshold
+            );
+
+            if(!humidityBreach || !temperatureBreach) return;
+
             if (humidityBreach) {
                 const message = humidityBreach === 'high'
                     ? `Humidity above maximum threshold of ${currentThresholds.humHighThreshold}% at ${mostRecentData.createdAt_time}`
@@ -144,13 +153,6 @@ function startMonitoring() {
                     breachType: humidityBreach
                 });
             }
-
-            // Check temperature thresholds
-            const temperatureBreach = checkThresholdBreach(
-                mostRecentData.temperature,
-                currentThresholds.tempHighThreshold,
-                currentThresholds.tempLowThreshold
-            );
 
             if (temperatureBreach) {
                 const message = temperatureBreach === 'high'
