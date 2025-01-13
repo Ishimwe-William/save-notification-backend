@@ -83,11 +83,17 @@ function startMonitoring() {
     off(warehouseDataRef);
     off(thresholdsRef);
 
-    // Track current thresholds
+    // Track current thresholds and the last threshold update timestamp
     let currentThresholds = null;
+    let lastThresholdUpdateTime = null;
+
+    // Listen for threshold changes
     onValue(thresholdsRef, (snapshot) => {
-        currentThresholds = snapshot.val();
-        console.log('Thresholds updated:', currentThresholds);
+        if (snapshot.exists()) {
+            currentThresholds = snapshot.val();
+            lastThresholdUpdateTime = new Date().toISOString(); // Update the threshold change timestamp
+            console.log('Thresholds updated:', currentThresholds, 'at', lastThresholdUpdateTime);
+        }
     });
 
     // Process warehouse data changes
@@ -104,6 +110,12 @@ function startMonitoring() {
             if (entries.length === 0) return;
 
             const [mostRecentKey, mostRecentData] = entries[0];
+
+            // Skip processing if the data is older than the last threshold update
+            if (lastThresholdUpdateTime && mostRecentData.createdAt_time <= lastThresholdUpdateTime) {
+                console.log('Skipping old data point:', mostRecentData.createdAt_time);
+                return;
+            }
 
             console.log('Processing data point:', {
                 time: mostRecentData.createdAt_time,
