@@ -1,6 +1,6 @@
 import express from "express";
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onValue, get, set, off, push } from "firebase/database";
+import {initializeApp} from "firebase/app";
+import {getDatabase, ref, onValue, get, set, off, push} from "firebase/database";
 import dotenv from "dotenv";
 
 dotenv.config();
