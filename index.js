@@ -1,6 +1,6 @@
 import express from "express";
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onValue, get, set, off, push } from "firebase/database";
+import { getDatabase, ref, onValue, set, push } from "firebase/database";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -25,13 +25,14 @@ const GENERAL_NOTIFICATIONS_PATH = '/warehouse/notifications/general';
 const WAREHOUSE_DATA_PATH = '/warehouse/data';
 
 const sentNotifications = new Set(); // Set to store unique notification identifiers
+let lastProcessedDataTimestamp = null;
 
 async function saveNotificationToFirebase(notification) {
     try {
         const notificationRef = ref(rtdb, GENERAL_NOTIFICATIONS_PATH);
 
         // Generate a unique identifier based on notification data
-        const notificationId = `${notification.type}_${notification.message}_${notification.value}_${notification.dataTimestamp}`;
+        const notificationId = `${notification.type}_${notification.parameter}_${notification.breachType}_${notification.dataTimestamp}`;
 
         // Check if this notification has already been sent
         if (sentNotifications.has(notificationId)) {
@@ -53,9 +54,6 @@ async function saveNotificationToFirebase(notification) {
         sentNotifications.add(notificationId);
         console.log('New notification saved:', notification);
 
-        // Optional: Clean up the set periodically (e.g., after 24 hours) to free memory
-        // sentNotifications.delete(notificationId); // Uncomment to remove after some time (e.g., after 1 day)
-
     } catch (error) {
         console.error("Error saving notification:", error);
     }
@@ -76,20 +74,14 @@ function startMonitoring() {
     const warehouseDataRef = ref(rtdb, WAREHOUSE_DATA_PATH);
     const thresholdsRef = ref(rtdb, THRESHOLDS_PATH);
 
-    // Clear existing listeners
-    // off(warehouseDataRef);
-    // off(thresholdsRef);
-
-    // Track current thresholds and the last threshold update timestamp
+    // Track current thresholds
     let currentThresholds = null;
-    let lastThresholdUpdateTime = null;
 
     // Listen for threshold changes
     onValue(thresholdsRef, (snapshot) => {
         if (snapshot.exists()) {
             currentThresholds = snapshot.val();
-            lastThresholdUpdateTime = new Date().toISOString(); // Update the threshold change timestamp
-            console.log('Thresholds updated:', currentThresholds, 'at', lastThresholdUpdateTime);
+            console.log('Thresholds updated:', currentThresholds);
         }
     });
 
@@ -106,15 +98,18 @@ function startMonitoring() {
 
             if (entries.length === 0) return;
 
-            const [mostRecentKey, mostRecentData] = entries[0];
+            const [mostRecentData] = entries[0];
 
-            // Skip processing if the data is older than the last threshold update
-            if (lastThresholdUpdateTime && mostRecentData.createdAt_time <= lastThresholdUpdateTime) {
-                console.log('Skipping old data point:', mostRecentData.createdAt_time);
+            // Skip if we've already processed this data point
+            if (lastProcessedDataTimestamp && mostRecentData.createdAt_time <= lastProcessedDataTimestamp) {
+                console.log('Skipping already processed data point:', mostRecentData.createdAt_time);
                 return;
             }
 
-            console.log('Processing data point:', {
+            // Update last processed timestamp
+            lastProcessedDataTimestamp = mostRecentData.createdAt_time;
+
+            console.log('Processing new data point:', {
                 time: mostRecentData.createdAt_time,
                 temperature: mostRecentData.temperature,
                 humidity: mostRecentData.humidity
