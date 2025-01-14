@@ -1,6 +1,6 @@
 import express from "express";
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onValue, set, push } from "firebase/database";
+import {initializeApp} from "firebase/app";
+import {getDatabase, ref, onValue, set, push} from "firebase/database";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -25,7 +25,6 @@ const GENERAL_NOTIFICATIONS_PATH = '/warehouse/notifications/general';
 const WAREHOUSE_DATA_PATH = '/warehouse/data';
 
 const sentNotifications = new Set(); // Set to store unique notification identifiers
-let lastProcessedDataTimestamp = null;
 
 async function saveNotificationToFirebase(notification) {
     try {
@@ -98,18 +97,10 @@ function startMonitoring() {
 
             if (entries.length === 0) return;
 
+            // Only process the most recent entry
             const [mostRecentData] = entries[0];
 
-            // Skip if we've already processed this data point
-            if (lastProcessedDataTimestamp && mostRecentData.createdAt_time <= lastProcessedDataTimestamp) {
-                console.log('Skipping already processed data point:', mostRecentData.createdAt_time);
-                return;
-            }
-
-            // Update last processed timestamp
-            lastProcessedDataTimestamp = mostRecentData.createdAt_time;
-
-            console.log('Processing new data point:', {
+            console.log('Processing most recent data point:', {
                 time: mostRecentData.createdAt_time,
                 temperature: mostRecentData.temperature,
                 humidity: mostRecentData.humidity
