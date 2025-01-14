@@ -1,6 +1,6 @@
 import express from "express";
-import {initializeApp} from "firebase/app";
-import {getDatabase, ref, onValue, set, push} from "firebase/database";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, onValue, set, push } from "firebase/database";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -25,6 +25,7 @@ const GENERAL_NOTIFICATIONS_PATH = '/warehouse/notifications/general';
 const WAREHOUSE_DATA_PATH = '/warehouse/data';
 
 const sentNotifications = new Set(); // Set to store unique notification identifiers
+let lastProcessedDataTimestamp = null;
 
 async function saveNotificationToFirebase(notification) {
     try {
@@ -73,8 +74,7 @@ function startMonitoring() {
     const warehouseDataRef = ref(rtdb, WAREHOUSE_DATA_PATH);
     const thresholdsRef = ref(rtdb, THRESHOLDS_PATH);
 
-    // Track current thresholds
-    let currentThresholds = null;
+    let currentThresholds = null; // Store the latest thresholds
 
     // Listen for threshold changes
     onValue(thresholdsRef, (snapshot) => {
@@ -88,31 +88,37 @@ function startMonitoring() {
     onValue(warehouseDataRef, async (snapshot) => {
         try {
             if (!snapshot.exists() || !currentThresholds) {
-                return;
+                return; // Skip if no data or thresholds
             }
 
             const data = snapshot.val();
             const entries = Object.entries(data)
-                .sort((a, b) => new Date(b[0].replace("_", "T")) - new Date(a[0].replace("_", "T")));
+                .sort((a, b) => new Date(b[0].replace("_", "T")) - new Date(a[0].replace("_", "T"))); // Sort by timestamp
 
             if (entries.length === 0) return;
 
-            // Only process the most recent entry
-            const [mostRecentData] = entries[0];
+            const [mostRecentKey, mostRecentData] = entries[0]; // Get the most recent data entry
 
-            console.log('Processing most recent data point:', {
+            console.log('Most recent data entry:', {
                 time: mostRecentData.createdAt_time,
                 temperature: mostRecentData.temperature,
                 humidity: mostRecentData.humidity
             });
 
-            // Check humidity thresholds
+            // Check if the most recent data is out of range
             const humidityBreach = checkThresholdBreach(
                 mostRecentData.humidity,
                 currentThresholds.humHighThreshold,
                 currentThresholds.humLowThreshold
             );
 
+            const temperatureBreach = checkThresholdBreach(
+                mostRecentData.temperature,
+                currentThresholds.tempHighThreshold,
+                currentThresholds.tempLowThreshold
+            );
+
+            // Create notifications only for out-of-range values
             if (humidityBreach) {
                 const message = humidityBreach === 'high'
                     ? `Humidity above maximum threshold of ${currentThresholds.humHighThreshold}% at ${mostRecentData.createdAt_time}`
@@ -127,13 +133,6 @@ function startMonitoring() {
                     breachType: humidityBreach
                 });
             }
-
-            // Check temperature thresholds
-            const temperatureBreach = checkThresholdBreach(
-                mostRecentData.temperature,
-                currentThresholds.tempHighThreshold,
-                currentThresholds.tempLowThreshold
-            );
 
             if (temperatureBreach) {
                 const message = temperatureBreach === 'high'
